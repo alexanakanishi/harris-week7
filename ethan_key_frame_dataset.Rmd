@@ -1,0 +1,137 @@
+---
+title: "ethan_r_markdown"
+author: "Ethan Bledsoe"
+date: "2026-08-31"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r}
+
+library(tidyverse)
+library(sf)
+library(stringr)
+library(readxl)
+```
+
+
+## Load shape file and datasets
+
+```{r}
+mun_sf <- st_read("~/Desktop/HSIF/Causal Inference/datasets/Mexico_mun_layer_simplified/Mexico_mun_layer_simplified.shp")
+st_crs(mun_sf) # check current
+reproj_mun_sf <- st_transform(mun_sf, crs = 6372) # reproject
+head(reproj_mun_sf)
+
+pop_weight_df<-read_csv("~/Desktop/HSIF/Causal Inference/datasets/cs_municipal_2025_popweighted.csv")
+head(pop_weight_df)
+
+municipal_df<-read_excel("~/Desktop/HSIF/Causal Inference/datasets/cs_municipal_2025.xlsx")
+# percent insecure weighted
+```
+
+## Merge datasets
+
+```{r}
+# Inspect datasets
+
+print(head(reproj_mun_sf)) #CVGEO, has leading zeroes
+print(head(pop_weight_df)) # CVGEO <dbl>
+print(head(municipal_df)) # cve_mun_completa <dbl>
+
+# Add leading zeroes
+
+pop_weight_df <- pop_weight_df %>% 
+  mutate(
+    CVEGEO = str_pad(
+      as.character(CVEGEO),
+      width = 5,
+      side = "left",
+      pad = "0"
+    )
+  )
+
+reproj_mun_sf <- reproj_mun_sf %>%
+  mutate(
+    CVEGEO = as.character(CVEGEO)
+  )
+
+municipal_df <- municipal_df %>% 
+  mutate(
+    CVEGEO = str_pad(
+      as.character(cve_mun_completa),
+      width = 5,
+      side = "left",
+      pad = "0"
+    )
+  )
+
+# Join datasets
+
+joined_df <- reproj_mun_sf %>%
+  left_join(energy_df, by = "CVEGEO") %>%
+  left_join(roads_df, by = "CVEGEO") %>%
+  left_join(rail_df, by = "CVEGEO") %>%
+  left_join(traffic_df, by = "CVEGEO")
+
+
+```
+```{r}
+crime_2025 <- municipal_df %>%
+  transmute(
+    CVEGEO,
+
+    homicidio_doloso_2025 =
+      homicidio_doloso_prom_diario * 365,
+
+    robo_veh_violencia_2025 =
+      robo_veh_violencia_prom_diario * 365
+  )
+
+# select insecuirity variables
+insecurity_df <- pop_weight_df %>%
+  select(
+    CVEGEO,
+    pct_inseguro_municipio,
+    n_inseguro_popw,
+    rank_n_inseguro_popw,
+    n_muestra_percepcion,
+    pobtot_2020,
+    p_18ymas_2020
+  )
+
+municipality_merged <- reproj_mun_sf %>%
+  left_join(
+    crime_2025,
+    by = "CVEGEO"
+  ) %>%
+  left_join(
+    insecurity_df,
+    by = "CVEGEO"
+  )
+
+```
+
+```{r}
+head(municipality_merged) # only population weighted, keep 4.846588e+04
+
+
+# select key variables
+final_key_df <- municipality_merged %>%
+  select(
+    CVEGEO,
+    NOMGEO,
+    homicidio_doloso_2025,
+    robo_veh_violencia_2025,
+    n_inseguro_popw
+  )
+
+head(final_key_df)
+# (n_seguro / adult_pop) = sampling rate, varies depending on municipality (push predictions by taking into account the variability in sampling rate)
+# rate of sampling success differs
+```
+
