@@ -5,6 +5,7 @@ date: "2026-08-31"
 ---
 
 ```{r setup, include=FALSE}
+
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -15,11 +16,151 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r cars}
-summary(cars)
+
+library(sf)
+library(dplyr)
+
+# ---- 1. Read the shapefile ----
+gdf <- st_read("Mexico_mun_layer_simplified/Mexico_mun_layer_simplified.shp",
+               options = "ENCODING=LATIN1")# ---- 2. Check CRS (reproject only if needed) ----
+st_crs(gdf)$epsg
+if (st_crs(gdf)$epsg != 6372) {
+  gdf <- st_transform(gdf, crs = 6372)
+}
+
+# ---- 3. Validate and fix geometries ----
+sum(!st_is_valid(gdf))          # expect 15
+gdf <- st_make_valid(gdf)
+sum(!st_is_valid(gdf))          # expect 0
+
+# ---- 4. Compute area in km^2 ----
+gdf$area_km2 <- as.numeric(st_area(gdf)) / 1e6
+
+# ---- 5. Standardize CVEGEO, build key frame ----
+gdf$CVEGEO <- formatC(as.numeric(gdf$CVEGEO), width = 5, format = "d", flag = "0")
+key_frame <- gdf %>% select(CVEGEO, NOMGEO, area_km2, geometry)
+
+# ---- 6. Audit ----
+nrow(key_frame)                                  # expect 2478
+sum(duplicated(key_frame$CVEGEO))                # expect 0
+sum(is.na(key_frame$CVEGEO))                     # expect 0
+sum(nchar(key_frame$CVEGEO) != 5)                # expect 0
+sum(key_frame$area_km2 <= 0 | is.na(key_frame$area_km2))  # expect 0
+
+# Sanity extremes
+key_frame %>% st_drop_geometry() %>% arrange(area_km2) %>% head(5)
+key_frame %>% st_drop_geometry() %>% arrange(desc(area_km2)) %>% head(5)
+
+# ---- 7. Cross-check against population file ----
+pop <- read.csv("cs_municipal_2025_popweighted.csv") %>%
+  mutate(CVEGEO = formatC(CVEGEO, width = 5, format = "d", flag = "0"))
+
+setdiff(pop$CVEGEO, key_frame$CVEGEO)   # expect the 8 placeholder codes ending 998/999
+setdiff(key_frame$CVEGEO, pop$CVEGEO)   # expect empty
+
+# ---- 8. Cross-check against treated61 ----
+treated <- read.csv("treated61-2.csv") %>%
+  mutate(CVEGEO = formatC(CVEGEO, width = 5, format = "d", flag = "0"))
+
+nrow(treated)                                     # expect 61
+setdiff(treated$CVEGEO, key_frame$CVEGEO)         # expect empty — all 61 present
+
+table(treated$gov_inclusion_code)                 # confirm 25 "strategic" / 36 criteria-based split
+
+# ---- 9. Save ----
+st_write(key_frame, "key_frame.gpkg", delete_dsn = TRUE)
+write.csv(st_drop_geometry(key_frame), "key_frame.csv", row.names = FALSE)
+
 ```
 
+
+```{r}
+
+# ---- Load criteria 1-2 source ----
+criteria_raw <- readxl::read_excel("cs_municipal_2025.xlsx")
+
+# ---- Standardize CVEGEO ----
+criteria_raw <- criteria_raw %>%
+  mutate(CVEGEO = formatC(cve_mun_completa, width = 5, format = "d", flag = "0"))
+
+# ---- Collapse daily averages to 2025 annual totals ----
+# NOTE: confirm with team whether *365 is the right conversion, or if there's
+# a documented number of reporting days for 2025 to use instead
+criteria_12 <- criteria_raw %>%
+  mutate(
+    homicidios_total = homicidio_doloso_prom_diario * 365,
+    robos_total       = robo_veh_violencia_prom_diario * 365
+  ) %>%
+  select(CVEGEO, municipio, homicidios_total, robos_total)
+
+# ---- Join onto the key frame ----
+criteria_12_full <- key_frame %>%
+  st_drop_geometry() %>%
+  select(CVEGEO, NOMGEO, area_km2) %>%
+  left_join(criteria_12, by = "CVEGEO")
+
+# ---- Audit ----
+nrow(criteria_12_full)                                   # should be 2478
+sum(is.na(criteria_12_full$homicidios_total))             # count missing
+sum(is.na(criteria_12_full$robos_total))                  # count missing
+sum(duplicated(criteria_12_full$CVEGEO))                  # should be 0
+
+# orphans: in criteria file but not in key frame
+setdiff(criteria_12$CVEGEO, key_frame$CVEGEO)
+
+# Sanity extremes
+criteria_12_full %>% arrange(desc(homicidios_total)) %>% head(5) %>% select(CVEGEO, NOMGEO, homicidios_total)
+criteria_12_full %>% arrange(desc(robos_total)) %>% head(5) %>% select(CVEGEO, NOMGEO, robos_total)
+
+# ---- Save ----
+write.csv(criteria_12_full, "criteria_12_cross_section.csv", row.names = FALSE)
+
+
+```
+```{r}
+
+# ---- Load perceived insecurity (population-weighted, Cabinet's preferred measure) ----
+# ---- Select perception-related columns (matching Ethan's approach) ----
+insecurity_df <- pop %>%
+  select(
+    CVEGEO,
+    pct_inseguro_municipio,
+    n_inseguro_popw,
+    rank_n_inseguro_popw,
+    n_muestra_percepcion,
+    pobtot_2020,
+    p_18ymas_2020
+  )
+
+# ---- Join onto your existing criteria_12_full ----
+municipality_merged <- criteria_12_full %>%
+  left_join(insecurity_df, by = "CVEGEO")
+
+head(municipality_merged)   # inspect before narrowing down
+
+# ---- Narrow to final table, keeping only the Cabinet's preferred measure ----
+final_key_df <- municipality_merged %>%
+  select(
+    CVEGEO,
+    NOMGEO,
+    homicidios_total,
+    robos_total,
+    n_inseguro_popw
+  )
+
+head(final_key_df)
+
+# ---- Audit ----
+nrow(final_key_df)                          # should be 2478
+sum(is.na(final_key_df$n_inseguro_popw))    # check coverage
+sum(duplicated(final_key_df$CVEGEO))        # should be 0
+
+# ---- Save ----
+write.csv(final_key_df, "final_key_df.csv", row.names = FALSE)
+```
+
+
 ## Including Plots
-#TESTTTTT!!!!
 
 You can also embed plots, for example:
 
@@ -28,3 +169,4 @@ plot(pressure)
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
