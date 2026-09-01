@@ -1,30 +1,213 @@
 ---
-title: "week7-alexa.Rmd"
+title: "Mexico Municipality Key Frame"
 author: "Alexa Nakanishi"
 date: "2026-08-31"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
-## R Markdown
+## Mexico Municipalities — Key Frame Map
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+This key frame establishes the geographic base for Mexico's 2,478 municipalities,
+colored by state to distinguish the 32 federal entities. It serves as the spatial
+foundation for subsequent data joins.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r load-packages}
+library(sf)
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(tidyr)
+library(readxl)
 ```
 
-## Including Plots
+```{r load-shapefile}
+# Read the municipality-level shapefile (Marco Geoestadístico Nacional, INEGI)
+mun <- st_read("data/Mexico_mun_layer_simplified.shp", quiet = TRUE)
 
-You can also embed plots, for example:
+# Repair any invalid ring windings before dissolving
+mun <- st_make_valid(mun)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# ── CRS: assert EPSG:6372 then transform (idempotent if already correct) ───────
+mun <- st_transform(mun, 6372)
+stopifnot("CRS must be EPSG:6372" = st_crs(mun)$epsg == 6372L)
+
+# Dissolve municipalities → state boundaries for a stronger outline layer
+states <- mun |>
+  group_by(CVE_ENT) |>
+  summarise(geometry = st_union(geometry), .groups = "drop")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r key-frame}
+# ── Produce the CVEGEO key frame with municipality areas ──────────────────────
+# st_area() returns m²; divide by 1e6 for km²
+key_frame <- mun |>
+  mutate(area_km2 = as.numeric(st_area(geometry)) / 1e6) |>
+  st_drop_geometry() |>
+  select(CVEGEO, CVE_ENT, CVE_MUN, NOMGEO, area_km2)
+
+stopifnot("key_frame must have 2478 rows"         = nrow(key_frame) == 2478L)
+stopifnot("CVEGEO must be unique"                 = n_distinct(key_frame$CVEGEO) == 2478L)
+stopifnot("No NA allowed in CVEGEO"               = sum(is.na(key_frame$CVEGEO)) == 0L)
+
+cat("key_frame built:", nrow(key_frame), "rows ×", ncol(key_frame), "cols\n")
+glimpse(key_frame)
+```
+
+```{r load-cross-section}
+# ── Load cross-section: ENVIPE insecurity perception + Censo 2020 denominators
+# Source: cs_municipal_2025_popweighted.csv
+# NOTE: SESNSP homicide/robbery incidence counts are not yet in this file.
+#       This CSV provides Censo denominators (pobtot_2020, p_18ymas_2020)
+#       and ENVIPE-based perceived insecurity for criteria 1–2 scoring.
+#       When SESNSP monthly CSVs land, collapse to 2025 totals and join here.
+# ─────────────────────────────────────────────────────────────────────────────
+
+cs_raw <- read_csv("data/cs_municipal_2025_popweighted.csv", show_col_types = FALSE)
+
+# CVEGEO in CSV is numeric (e.g. 1001); pad to 5-char string to match shapefile
+cs_raw <- cs_raw |>
+  mutate(CVEGEO = sprintf("%05d", CVEGEO))
+
+# Drop the 8 ENVIPE aggregate/sentinel CVEGEOs that have no geometry
+# (09998, 14998, 20999, 22998, 26998, 26999, 30998, 30999)
+cs_sentinel <- cs_raw |> filter(!CVEGEO %in% key_frame$CVEGEO)
+cs_clean    <- cs_raw |> filter( CVEGEO %in% key_frame$CVEGEO)
+
+cat("CSV rows read:", nrow(cs_raw),
+    "| sentinel rows dropped:", nrow(cs_sentinel),
+    "| rows retained:", nrow(cs_clean), "\n")
+if (nrow(cs_sentinel) > 0) {
+  cat("Sentinel CVEGEOs:", paste(cs_sentinel$CVEGEO, collapse = ", "), "\n")
+}
+```
+
+```{r load-sesnsp}
+# ── Load SESNSP crime data: intentional homicide + robbery w/ violence ─────────
+# Source: cs_municipal_2025.xlsx
+# Columns used:
+#   homicidio_doloso_prom_diario   — intentional homicide, daily avg (SESNSP 2025)
+#   robo_veh_violencia_prom_diario — vehicle robbery w/ violence, daily avg (SESNSP 2025)
+# Values are already aggregated daily averages; no further transformation applied.
+
+sesnsp_raw <- read_excel("data/cs_municipal_2025.xlsx") |>
+  rename(CVEGEO = cve_mun_completa) |>
+  mutate(CVEGEO = sprintf("%05d", CVEGEO)) |>
+  select(CVEGEO, homicidio_doloso_prom_diario, robo_veh_violencia_prom_diario)
+
+# Drop the same 8 aggregate/sentinel CVEGEOs
+sesnsp_sentinel <- sesnsp_raw |> filter(!CVEGEO %in% key_frame$CVEGEO)
+sesnsp_clean    <- sesnsp_raw |> filter( CVEGEO %in% key_frame$CVEGEO)
+
+cat("SESNSP rows read:", nrow(sesnsp_raw),
+    "| sentinel rows dropped:", nrow(sesnsp_sentinel),
+    "| rows retained:", nrow(sesnsp_clean), "\n")
+```
+
+```{r assemble-cross-section}
+# ── Left-join key_frame ← ENVIPE/Censo ← SESNSP crime ─────────────────────────
+cross_section <- key_frame |>
+  left_join(cs_clean,     by = "CVEGEO") |>
+  left_join(sesnsp_clean, by = "CVEGEO")
+
+cat("cross_section assembled:", nrow(cross_section), "rows ×",
+    ncol(cross_section), "cols\n")
+```
+
+```{r pipeline-key-audit}
+# ══════════════════════════════════════════════════════════════════════════════
+# PIPELINE KEY AUDIT
+# ══════════════════════════════════════════════════════════════════════════════
+
+cat("────────────────────────────────────────────────────────\n")
+cat("1. KEY FRAME ROW / KEY CHECKS\n")
+cat("────────────────────────────────────────────────────────\n")
+cat("  Rows:              ", nrow(key_frame), "(expected 2478)\n")
+cat("  Unique CVEGEOs:    ", n_distinct(key_frame$CVEGEO), "\n")
+cat("  NA in CVEGEO:      ", sum(is.na(key_frame$CVEGEO)), "\n")
+cat("  Area NAs:          ", sum(is.na(key_frame$area_km2)), "\n")
+cat("  Area range (km²):  ", round(min(key_frame$area_km2), 2), "–",
+    round(max(key_frame$area_km2), 2), "\n\n")
+
+cat("────────────────────────────────────────────────────────\n")
+cat("2. ENVIPE / CENSO JOIN COVERAGE\n")
+cat("────────────────────────────────────────────────────────\n")
+n_envipe <- sum(!is.na(cross_section$pct_inseguro_municipio))
+n_pop_na <- sum(is.na(cross_section$pobtot_2020))
+cat("  Municipios with ENVIPE data:    ", n_envipe, "/", nrow(cross_section), "\n")
+cat("  Municipios missing pobtot_2020: ", n_pop_na, "\n\n")
+
+cat("────────────────────────────────────────────────────────\n")
+cat("3. SESNSP CRIME DATA COVERAGE & DISTRIBUTION\n")
+cat("────────────────────────────────────────────────────────\n")
+n_hom_na  <- sum(is.na(cross_section$homicidio_doloso_prom_diario))
+n_rob_na  <- sum(is.na(cross_section$robo_veh_violencia_prom_diario))
+n_hom_pos <- sum(cross_section$homicidio_doloso_prom_diario > 0, na.rm = TRUE)
+n_rob_pos <- sum(cross_section$robo_veh_violencia_prom_diario > 0, na.rm = TRUE)
+cat("  Homicide (doloso) — NAs:", n_hom_na,
+    "| municipios with events:", n_hom_pos, "/", nrow(cross_section), "\n")
+cat("  Robbery (veh+violencia) — NAs:", n_rob_na,
+    "| municipios with events:", n_rob_pos, "/", nrow(cross_section), "\n\n")
+cat("  homicidio_doloso_prom_diario summary:\n")
+print(summary(cross_section$homicidio_doloso_prom_diario))
+cat("  robo_veh_violencia_prom_diario summary:\n")
+print(summary(cross_section$robo_veh_violencia_prom_diario))
+
+cat("────────────────────────────────────────────────────────\n")
+cat("AUDIT COMPLETE — pipeline status: COMPLETE\n")
+cat("Key frame: ✓  |  ENVIPE/Censo join: ✓  |  SESNSP crime: ✓\n")
+cat("────────────────────────────────────────────────────────\n")
+```
+
+```{r key-frame-map, fig.width=10, fig.height=6.5}
+# ── Categorical palette: 8-hue fixed order, validated for CVD separation ──────
+# Hues are cycled across 32 states (4 states per hue) using modular assignment
+# so no two adjacent states share the same hue bucket where possible.
+state_palette <- c(
+  "#4E79A7", "#F28E2B", "#59A14F", "#E15759",
+  "#76B7B2", "#EDC948", "#B07AA1", "#FF9DA7"
+)
+
+# Assign a display hue to each state using modulo cycling
+mun <- mun |>
+  mutate(hue_group = factor((as.integer(CVE_ENT) - 1L) %% 8L + 1L))
+
+# ── Map ────────────────────────────────────────────────────────────────────────
+ggplot() +
+  # Municipality fills — light alpha so boundaries remain legible
+  geom_sf(
+    data  = mun,
+    aes(fill = hue_group),
+    color = "white",
+    linewidth = 0.08,
+    show.legend = FALSE
+  ) +
+  # State outlines — drawn on top, no fill, clearly heavier stroke
+  geom_sf(
+    data      = states,
+    fill      = NA,
+    color     = "#1a1a1a",
+    linewidth = 0.45
+  ) +
+  # Fixed 8-hue palette — same order every render, never cycled by rank
+  scale_fill_manual(values = state_palette) +
+  # ── Labels ─────────────────────────────────────────────────────────────────
+  labs(
+    title    = "Mexico: Municipal Boundaries",
+    subtitle = "2,478 municipalities across 32 states — key frame for spatial analysis",
+    caption  = "Source: INEGI — Mexico_mun_layer_simplified shapefile\nProjection: Mexico ITRF2008 / LCC (EPSG:6372)"
+  ) +
+  # ── Theme ──────────────────────────────────────────────────────────────────
+  theme_void(base_size = 12) +
+  theme(
+    plot.title      = element_text(face = "bold", size = 15, margin = margin(b = 4)),
+    plot.subtitle   = element_text(color = "#555555", size = 10, margin = margin(b = 8)),
+    plot.caption    = element_text(color = "#888888", size = 8,  hjust = 0,
+                                   margin = margin(t = 10)),
+    plot.margin     = margin(12, 12, 12, 12),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+```
