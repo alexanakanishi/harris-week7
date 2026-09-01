@@ -1,0 +1,101 @@
+CVEGEO,municipio,entidad,composite,rank_composite,non_sampled,treated
+25006,Culiac√°n,Sinaloa,21.471977611204228,1,0,1
+02004,Tijuana,Baja California,14.887538050230432,2,0,1
+15033,Ecatepec de Morelos,M√©xico,10.89172428061888,3,0,1
+08037,Ju√°rez,Chihuahua,10.366702915568132,4,0,1
+21114,Puebla,Puebla,8.422815101393617,5,0,1
+11020,Le√≥n,Guanajuato,8.038209261726449,6,0,1
+12001,Acapulco de Ju√°rez,Guerrero,7.148989758021304,7,0,1
+09007,Iztapalapa,Ciudad de M√©xico,6.6621174461414085,8,0,1
+14039,Guadalajara,Jalisco,6.436190136096155,9,0,1
+14098,San Pedro Tlaquepaque,Jalisco,5.773853657869705,10,0,1
+15104,Tlalnepantla de Baz,M√©xico,5.580819644714609,11,0,1
+15057,Naucalpan de Ju√°rez,M√©xico,5.449027755013398,12,0,1
+15031,Chimalhuac√°n,M√©xico,4.5348652805460885,13,0,1
+27004,Centro,Tabasco,4.44914733722681,14,0,1
+26018,Cajeme,Sonora,4.328523229575379,15,0,1
+16053,Morelia,Michoac√°n de Ocampo,4.3037456754766374,16,0,1
+14120,Zapopan,Jalisco,4.298902162219781,17,0,1
+11007,Celaya,Guanajuato,4.224755457279091,18,0,1
+17007,Cuernavaca,Morelos,4.174019458563687,19,0,1
+02002,Mexicali,Baja California,4.130517402602138,20,0,1
+26030,Hermosillo,Sonora,4.059301375741202,21,0,1
+11017,Irapuato,Guanajuato,4.0150557195348595,22,0,1
+09005,Gustavo A. Madero,Ciudad de M√©xico,3.919769330600989,23,0,1
+23005,Benito Ju√°rez,Quintana Roo,3.825171527962947,24,0,1
+08019,Chihuahua,Chihuahua,3.7995191262243178,25,0,1
+19039,Monterrey,Nuevo Le√≥n,3.664275096553427,26,0,1
+25012,Mazatl√°n,Sinaloa,3.623167398102259,27,0,1
+15121,Cuautitl√°n Izcalli,M√©xico,3.563800365650824,28,0,0
+15106,Toluca,M√©xico,3.538726412110026,29,0,1
+16102,Uruapan,Michoac√°n de Ocampo,3.537567443195291,30,0,1
+24028,San Luis Potos√≠,San Luis Potos√≠,3.371682054977589,31,0,1
+28032,Reynosa,Tamaulipas,3.214697296223975,32,0,0
+15058,Nezahualc√≥yotl,M√©xico,3.2125248045533183,33,0,1
+14097,Tlajomulco de Z√∫√±iga,Jalisco,3.1781916843197364,34,0,0
+15081,Tec√°mac,M√©xico,3.0772901367903196,35,0,0
+11027,Salamanca,Guanajuato,3.0672221959292014,36,0,1
+15025,Chalco,M√©xico,3.063913465741269,37,0,1
+15109,Tultitl√°n,M√©xico,3.0351742018519055,38,0,0
+14101,Tonal√°,Jalisco,2.7080614203712354,39,0,1
+22014,Quer√©taro,Quer√©taro,2.6272080960785136,40,0,0
+16108,Zamora,Michoac√°n de Ocampo,2.6257535893033968,41,0,1
+16006,Apatzing√°n,Michoac√°n de Ocampo,2.2295862623941685,42,0,1
+06007,Manzanillo,Colima,2.1998745880595214,43,0,1
+09010,√Ålvaro Obreg√≥n,Ciudad de M√©xico,2.1729254758287713,44,0,0
+15122,Valle de Chalco Solidaridad,M√©xico,2.137596318571266,45,0,1
+15070,La Paz,M√©xico,2.113286060041728,46,0,1
+17011,Jiutepec,Morelos,2.0446738505175093,47,0,0
+25018,Navolato,Sinaloa,2.0266752693706103,48,0,0
+26055,San Luis R√≠o Colorado,Sonora,1.905493566999468,49,0,1
+09012,Tlalpan,Ciudad de M√©xico,1.8867042362376958,50,0,0
+12029,Chilpancingo de los Bravo,Guerrero,1.8777464683465324,51,0,1
+09015,Cuauht√©moc,Ciudad de M√©xico,1.8342871981064492,52,0,0
+15060,Nicol√°s Romero,M√©xico,1.7857521958748894,53,0,0
+15039,Ixtapaluca,M√©xico,1.7411525699000638,54,0,1
+02001,Ensenada,Baja California,1.6851792801261698,55,0,0
+15013,Atizap√°n de Zaragoza,M√©xico,1.6738824964012793,56,0,0
+30193,Veracruz,Veracruz de Ignacio de la Llave,1.6220012784205224,57,0,0
+19026,Guadalupe,Nuevo Le√≥n,1.5324457552863169,58,0,0
+17006,Cuautla,Morelos,1.5304525022029942,59,0,1
+11042,Valle de Santiago,Guanajuato,1.502643231503799,60,0,0
+14070,El Salto,Jalisco,1.4967906528639336,61,0,0
+15120,Zumpango,M√©xico,1.4889524628125719,62,0,0
+01001,Aguascalientes,Aguascalientes,1.4191962037507608,63,0,0
+19031,Ju√°rez,Nuevo Le√≥n,1.4133683877231666,64,0,0
+09013,Xochimilco,Ciudad de M√©xico,1.4052625417133762,65,0,0
+09017,Venustiano Carranza,Ciudad de M√©xico,1.4051664370847752,66,0,0
+17018,Temixco,Morelos,1.390255151795232,67,0,0
+11005,Apaseo el Grande,Guanajuato,1.3889219797586294,68,0,0
+30039,Coatzacoalcos,Veracruz de Ignacio de la Llave,1.387314123361391,69,0,0
+21132,San Mart√≠n Texmelucan,Puebla,1.3721733562451248,70,0,0
+19018,Garc√≠a,Nuevo Le√≥n,1.3702974000025936,71,0,1
+07101,Tuxtla Guti√©rrez,Chiapas,1.3479220709639141,72,0,0
+21015,Amozoc,Puebla,1.338240474810573,73,0,0
+06002,Colima,Colima,1.3213033669360648,74,0,1
+17008,Emiliano Zapata,Morelos,1.2814035707477265,75,0,0
+15020,Coacalco de Berrioz√°bal,M√©xico,1.2697217365332143,76,0,0
+28022,Matamoros,Tamaulipas,1.247814229653346,77,0,0
+12038,Zihuatanejo de Azueta,Guerrero,1.226040474232483,78,0,0
+09006,Iztacalco,Ciudad de M√©xico,1.1765953583655422,79,0,0
+19006,Apodaca,Nuevo Le√≥n,1.1704567347242139,80,0,0
+15091,Teoloyucan,M√©xico,1.1641326079040155,81,0,0
+15108,Tultepec,M√©xico,1.163241059571779,82,0,0
+09002,Azcapotzalco,Ciudad de M√©xico,1.1455286157205684,83,0,0
+21156,Tehuac√°n,Puebla,1.124009893651212,84,0,1
+09011,Tl√°huac,Ciudad de M√©xico,1.1222801984320148,85,0,0
+19021,General Escobedo,Nuevo Le√≥n,1.1114192125163178,86,0,1
+27005,Comalcalco,Tabasco,1.0934422063628189,87,0,0
+24035,Soledad de Graciano S√°nchez,San Luis Potos√≠,1.0712491529929231,88,0,0
+07089,Tapachula,Chiapas,1.046994856786165,89,0,0
+17029,Yautepec,Morelos,1.0310596381416819,90,0,0
+25008,Elota,Sinaloa,1.0306658060205853,91,0,0
+10005,Durango,Durango,1.02929411385425,92,0,0
+09003,Coyoac√°n,Ciudad de M√©xico,1.0211288336352018,93,0,0
+09016,Miguel Hidalgo,Ciudad de M√©xico,0.9993066715973402,94,0,0
+16043,Jacona,Michoac√°n de Ocampo,0.9950757772957418,95,0,0
+05035,Torre√≥n,Coahuila de Zaragoza,0.9947703871957199,96,0,0
+31050,M√©rida,Yucat√°n,0.9692827840640988,97,0,1
+30087,Xalapa,Veracruz de Ignacio de la Llave,0.9583392830608726,98,0,0
+27002,C√°rdenas,Tabasco,0.9441969475876641,99,0,0
+11037,Silao de la Victoria,Guanajuato,0.9313662837208426,100,0,0
