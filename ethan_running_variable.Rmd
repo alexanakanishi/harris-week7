@@ -1,0 +1,313 @@
+---
+title: "ethan_running_variable"
+author: "Ethan Bledsoe"
+date: "2026-09-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+```{r}
+library(tidyverse)
+library(sf)
+library(stringr)
+```
+
+
+## Add treatment information
+
+```{r}
+# Read treated municipalities
+treated <- read_csv(
+  "~/Desktop/HSIF/Causal Inference/datasets/treated61-2.csv",
+  show_col_types = FALSE
+) %>%
+  mutate(
+    CVEGEO = str_pad(
+      as.character(CVEGEO),
+      width = 5,
+      side = "left",
+      pad = "0"
+    )
+  )
+
+final_key_df <- read_csv(
+  "~/Desktop/HSIF/Causal Inference/datasets/final_key_df_head.csv",
+  show_col_types = FALSE)
+
+# Keep only variables needed for the join
+# distinct() prevents accidental duplication of municipalities
+treated_important <- treated %>%
+  dplyr::select(
+    CVEGEO,
+    gov_inclusion_code
+  ) %>%
+  distinct(CVEGEO, .keep_all = TRUE)
+
+# Add treatment information
+final_key_df <- final_key_df %>%
+  left_join(
+    treated_important,
+    by = "CVEGEO"
+  ) %>%
+  mutate(
+    ever_treated = as.integer(!is.na(gov_inclusion_code))
+  )
+
+# Check number treated
+table(final_key_df$ever_treated)
+
+```
+
+
+# Dataset being used is final_key_df
+
+## Composite z-score: standardize, orient, average (equal and inverse-variance weights)
+```{r}
+
+# Basic z-score using scale() function
+final_key_df <- final_key_df %>% 
+  mutate(homicidio_scaled = as.numeric(scale(homicidio_doloso_2025))) %>% 
+  mutate(robo_veh_scaled = as.numeric(scale(robo_veh_violencia_2025))) %>% 
+  mutate(inseguro_scaled = as.numeric(scale(n_inseguro_popw)))
+
+# Equal weights ranking
+
+final_key_df <- final_key_df %>% 
+  mutate(equal_score = (homicidio_scaled + robo_veh_scaled + inseguro_scaled)) %>% 
+  arrange(desc(equal_score))
+
+final_key_df <- final_key_df %>% 
+  mutate(
+    equal_rank = rank(-equal_score, ties.method = "min")
+  )
+
+# How many treated municipalities are in the top 61: 43
+final_key_df %>%
+  filter(equal_rank <= 61) %>%
+  summarise(
+    n_treated_in_top_53 = sum(ever_treated == 1, na.rm = TRUE)
+  )
+
+```
+## Common analysis sample
+```{r}
+analysis_df <- final_key_df %>%
+  filter(
+    !is.na(homicidio_doloso_2025),
+    !is.na(robo_veh_violencia_2025),
+    !is.na(n_inseguro_popw)
+  ) %>%
+  mutate(
+    homicidio_scaled = as.numeric(
+      scale(homicidio_doloso_2025)
+    ),
+    
+    robo_veh_scaled = as.numeric(
+      scale(robo_veh_violencia_2025)
+    ),
+    
+    inseguro_scaled = as.numeric(
+      scale(n_inseguro_popw)
+    )
+  )
+
+nrow(analysis_df)
+```
+
+## Equal-weight composite z-score
+
+```{r}
+
+equal_df <- analysis_df %>%
+  mutate(
+    equal_score = (
+      homicidio_scaled +
+      robo_veh_scaled +
+      inseguro_scaled
+    ) / 3
+  ) %>%
+  arrange(desc(equal_score)) %>%
+  mutate(
+    equal_rank = row_number()
+  )
+
+# Exact top 61
+equal_top61 <- equal_df %>%
+  slice_head(n = 61)
+
+# In-sample overlap with treated municipalities
+equal_top61 %>%
+  st_drop_geometry() %>%
+  summarise(
+    n_treated_in_top_61 =
+      sum(ever_treated == 1),
+    
+    pct_treated_in_top_61 =
+      mean(ever_treated == 1) * 100
+  )
+
+```
+
+
+## Logistic regression score
+
+```{r}
+logit_model <- glm(
+  ever_treated ~
+    homicidio_scaled +
+    robo_veh_scaled +
+    inseguro_scaled,
+  data = analysis_df,
+  family = binomial
+)
+
+summary(logit_model)
+
+logit_df <- analysis_df %>%
+  mutate(
+    logit_score = predict(
+      logit_model,
+      type = "response"
+    )
+  ) %>%
+  arrange(desc(logit_score)) %>%
+  mutate(
+    logit_rank = row_number()
+  )
+
+# Exact top 61
+logit_top61 <- logit_df %>%
+  slice_head(n = 61)
+
+# In-sample overlap with treated municipalities
+logit_top61 %>%
+  st_drop_geometry() %>%
+  summarise(
+    n_treated_in_top_61 =
+      sum(ever_treated == 1),
+    
+    pct_treated_in_top_61 =
+      mean(ever_treated == 1) * 100
+  )
+
+```
+
+## Principal component score
+
+```{r}
+pca_model <- prcomp(
+  analysis_df %>%
+    st_drop_geometry() %>%
+    dplyr::select(
+      homicidio_scaled,
+      robo_veh_scaled,
+      inseguro_scaled
+    ),
+  center = FALSE,
+  scale. = FALSE
+)
+
+summary(pca_model)
+
+# Examine PC1 loadings
+pca_model$rotation[, 1]
+```
+```{r}
+pca_score <- pca_model$x[, 1]
+
+# Mean of the three standardized measures
+overall_insecurity <- analysis_df %>%
+  st_drop_geometry() %>%
+  transmute(
+    overall = (
+      homicidio_scaled +
+      robo_veh_scaled +
+      inseguro_scaled
+    ) / 3
+  ) %>%
+  pull(overall)
+
+# Flip PC1 if necessary
+if (cor(pca_score, overall_insecurity) < 0) {
+  pca_score <- -pca_score
+}
+
+pca_df <- analysis_df %>%
+  mutate(
+    pca_score = pca_score
+  ) %>%
+  arrange(desc(pca_score)) %>%
+  mutate(
+    pca_rank = row_number()
+  )
+
+# Exact top 61
+pca_top61 <- pca_df %>%
+  slice_head(n = 61)
+
+# Overlap with treated municipalities
+pca_top61 %>%
+  st_drop_geometry() %>%
+  summarise(
+    n_treated_in_top_61 =
+      sum(ever_treated == 1),
+    
+    pct_treated_in_top_61 =
+      mean(ever_treated == 1) * 100
+  )
+```
+## Compare ranking methods
+```{r}
+equal_ids <- equal_top61$CVEGEO
+logit_ids <- logit_top61$CVEGEO
+pca_ids   <- pca_top61$CVEGEO
+
+tibble(
+  comparison = c(
+    "Equal vs Logistic",
+    "Equal vs PCA",
+    "Logistic vs PCA"
+  ),
+  overlap = c(
+    length(intersect(equal_ids, logit_ids)),
+    length(intersect(equal_ids, pca_ids)),
+    length(intersect(logit_ids, pca_ids))
+  )
+)
+```
+
+## Municipalities selected by logistic but not equal weights
+```{r}
+logit_only <- logit_top61 %>%
+  st_drop_geometry() %>%
+  filter(!CVEGEO %in% equal_ids) %>%
+  dplyr::select(
+    CVEGEO,
+    NOMGEO,
+    logit_rank,
+    logit_score,
+    ever_treated
+  )
+
+logit_only
+```
+## Municipalities selected by equal weights but not logistic
+```{r}
+equal_only <- equal_top61 %>%
+  st_drop_geometry() %>%
+  filter(!CVEGEO %in% logit_ids) %>%
+  dplyr::select(
+    CVEGEO,
+    NOMGEO,
+    equal_rank,
+    equal_score,
+    ever_treated
+  )
+
+equal_only
+```
+
