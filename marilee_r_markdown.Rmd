@@ -1,0 +1,215 @@
+---
+title: "MarileeScript"
+output: html_document
+date: "2026-08-31"
+---
+
+------------------------------------------------------------------------
+
+**Mexican Municipalities to PEMEX Facilities**
+
+```{r}
+
+# ---------------------------------------------------------------
+# Distance from Mexican municipalities to nearest PEMEX facility,
+# by facility type.
+#
+# Outputs one row per municipality with:
+#   - distance to nearest facility of each of the 6 types
+#   - name/ID of that nearest facility
+#   - counts of facilities within 25 / 50 / 100 km bands
+#   - an overall nearest-facility distance
+#
+# Distances in KILOMETERS, computed in EPSG:6372 (Mexico ITRF2008 / LCC).
+# ---------------------------------------------------------------
+
+library(sf)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(stringr)
+
+MUN_PATH  <- "/Users/marileekarinshak/Desktop/Mexico_mun/Mun Shapefile/Mexico_mun_layer_simplified.shp" 
+PTS_PATH  <- "/Users/marileekarinshak/Desktop/Mexico_mun/PemexInfrastructure Shapefile/PemexInfrastructurePoints.shp"
+
+MUN_ID    <- "CVEGEO"     # municipality unique ID field
+TYPE_FIELD <- "layer"      # facility type field in PTS_PATH
+FAC_ID    <- "facility_n"   # facility name/ID field (for reporting which was nearest)
+
+CRS_PROJ  <- 6372         # Mexico ITRF2008 / LCC -- meters
+BANDS_KM  <- c(25, 50, 100)
+
+OUT_CSV   <- "municipality_pemex_distances.csv"
+
+TYPE_MAP <- c(
+  "refinery"                        = "refinery",
+  "gas processing complex (cpg)"    = "gasproc",
+  "petrochemical complex"           = "petrochem",
+  "storage & distribution terminal (tar)" = "storage",
+  "marine terminal"                 = "maritime",
+  "oil field"                       = "oilfield"
+)
+
+# ---------------------------------------------------------------
+# 1. LOAD + INSPECT
+# ---------------------------------------------------------------
+
+mun <- st_read(MUN_PATH, quiet = TRUE)
+pts <- st_read(PTS_PATH, quiet = TRUE)
+
+cat("Municipalities:", nrow(mun), "\n")
+cat("Facilities:    ", nrow(pts), "\n\n")
+
+cat("Facility type counts as read:\n")
+print(table(pts[[TYPE_FIELD]], useNA = "ifany"))
+cat("\n")
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 2. CLEAN GEOMETRY + REPROJECT
+# ---------------------------------------------------------------
+
+# Fixes the QGIS "invalid geometry" error
+mun <- st_make_valid(mun)
+stopifnot(all(st_is_valid(mun)))
+
+mun <- st_transform(mun, CRS_PROJ)
+pts <- st_transform(pts, CRS_PROJ)
+
+# Normalize type strings, then map to suffixes
+pts$.type_raw <- str_squish(str_to_lower(as.character(pts[[TYPE_FIELD]])))
+pts$.type     <- TYPE_MAP[pts$.type_raw]
+
+unmapped <- unique(pts$.type_raw[is.na(pts$.type)])
+if (length(unmapped) > 0) {
+  stop("Unmapped facility types -- add these to TYPE_MAP:\n  ",
+       paste(unmapped, collapse = "\n  "))
+}
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 3. CENTROIDS
+# ---------------------------------------------------------------
+
+cent <- st_centroid(mun)
+
+# Some municipalities are crescent-shaped; their centroid falls outside
+# the polygon. Substitute point-on-surface for those.
+inside_own <- diag(st_intersects(cent, mun, sparse = FALSE))
+n_out <- sum(!inside_own)
+cat("Centroids outside own polygon:", n_out, "-> using point-on-surface\n\n")
+if (n_out > 0) {
+  st_geometry(cent)[!inside_own] <-
+    st_geometry(st_point_on_surface(mun[!inside_own, ]))
+}
+
+```
+
+```{r}
+# check: should be 0
+sum(!diag(st_intersects(cent, mun, sparse = FALSE)))
+
+# confirm nothing got dropped or NA'd
+nrow(cent)
+sum(st_is_empty(cent))
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 4. DISTANCE ENGINE
+# ---------------------------------------------------------------
+
+# One row per feature in `ref`; columns suffixed with `tag`.
+nearest_by_type <- function(ref, ref_ids, pts, tag) {
+  
+  types <- sort(unique(pts$.type))
+  
+  per_type <- map(types, function(tp) {
+    sub <- pts[pts$.type == tp, ]
+    if (nrow(sub) == 0) return(NULL)
+    
+    # distance matrix: nrow(ref) x nrow(sub), meters
+    D <- matrix(as.numeric(st_distance(ref, sub)), nrow = nrow(ref))
+    
+    idx  <- apply(D, 1, which.min)
+    dmin <- D[cbind(seq_len(nrow(D)), idx)] / 1000   # -> km
+    
+    res <- tibble(
+      !!paste0("dist_", tp)    := dmin,
+      !!paste0("nearest_", tp) := as.character(sub[[FAC_ID]])[idx]
+    )
+    for (b in BANDS_KM) {
+      res[[paste0("n_", tp, "_", b, "km")]] <- rowSums(D <= b * 1000)
+    }
+    res
+  })
+  
+  out <- bind_cols(compact(per_type))
+  
+  # overall, across all types
+  Dall <- matrix(as.numeric(st_distance(ref, pts)), nrow = nrow(ref))
+  out$dist_any <- apply(Dall, 1, min) / 1000
+  for (b in BANDS_KM) {
+    out[[paste0("n_any_", b, "km")]] <- rowSums(Dall <= b * 1000)
+  }
+  
+  out <- bind_cols(tibble(!!MUN_ID := as.character(ref_ids)), out)
+  names(out)[-1] <- paste0(names(out)[-1], "_", tag)
+  out
+}
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 5. RUN
+# ---------------------------------------------------------------
+
+res_cent <- nearest_by_type(cent, mun[[MUN_ID]], pts, "cent")
+res_edge <- nearest_by_type(mun,  mun[[MUN_ID]], pts, "edge")
+
+final <- full_join(res_cent, res_edge, by = MUN_ID)
+
+# hosting indicators
+hosted <- st_intersects(mun, pts)
+final$n_hosted  <- lengths(hosted)
+final$hosts_any <- final$n_hosted > 0
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 6. SANITY CHECKS
+# ---------------------------------------------------------------
+
+type_suffixes <- sort(unique(pts$.type))
+dist_cols <- paste0("dist_", type_suffixes, "_cent")
+dist_cols <- dist_cols[dist_cols %in% names(final)]
+
+gap <- abs(do.call(pmin, c(as.list(final[dist_cols]), na.rm = TRUE)) -
+             final$dist_any_cent)
+
+cat("--- checks ---\n")
+cat("Rows:", nrow(final), "(expected", nrow(mun), ")\n")
+cat("Duplicate IDs:", sum(duplicated(final[[MUN_ID]])), "\n")
+cat("NA distances:", sum(is.na(final$dist_any_cent)), "\n")
+cat("Max gap, min-of-types vs dist_any:", round(max(gap, na.rm = TRUE), 6),
+    "km  [should be ~0]\n")
+cat("Municipalities hosting >=1 facility:", sum(final$hosts_any), "\n\n")
+
+cat("Centroid distances by type (km):\n")
+print(summary(as.data.frame(final[dist_cols])))
+
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 7. EXPORT
+# ---------------------------------------------------------------
+
+write.csv(final, OUT_CSV, row.names = FALSE)
+cat("\nWrote", OUT_CSV, "--", nrow(final), "rows x", ncol(final), "cols\n")
+
+write.csv(final, "~/Desktop/municipality_pemex_distances.csv", row.names = FALSE)
+
+```
