@@ -1,0 +1,292 @@
+---
+title: "marilee_mex_statecap"
+output: html_document
+date: "2026-09-02"
+---
+
+**Mexican Municipalities to State Capitals**
+
+```{r}
+# ---------------------------------------------------------------
+# Distance and adjacency from Mexican municipalities to state capitals.
+#
+# Produces, for each municipality:
+#   - distance to ITS OWN state's capital (point-based and polygon-based)
+#   - distance to the NEAREST capital of any state, + which one
+#   - whether the municipality IS a state capital
+#   - whether it is ADJACENT to (shares a border with) its state's capital
+#   - counts of capitals within radius bands
+#
+# Distances in KILOMETERS, computed in EPSG:6372 (Mexico ITRF2008 / LCC).
+# ---------------------------------------------------------------
+
+library(sf)
+library(dplyr)
+library(readr)
+library(stringr)
+
+# ---------------------------------------------------------------
+# 0. CONFIG
+# ---------------------------------------------------------------
+
+MUN_PATH  <- "/Users/marileekarinshak/MexicoProject/harris-week7/data/raw/Shapefiles/Mun Shapefile/Mexico_mun_layer_simplified.shp"
+
+CAP_PATH  <- "/Users/marileekarinshak/MexicoProject/harris-week7/data/raw/StateCap/mexico_state_capitals.csv"
+
+MUN_ID    <- "CVEGEO"   # 5-digit municipality code (2-digit state + 3-digit muni)
+CRS_PROJ  <- 6372       # Mexico ITRF2008 / LCC -- meters
+BANDS_KM  <- c(100, 200)
+
+# Distance under which a municipality is treated as "near" its capital.
+# Stands in for the boundary-adjacency measure we're skipping.
+NEAR_KM   <- 50
+
+OUT_CSV   <- "/Users/marileekarinshak/MexicoProject/harris-week7/data/processed/StateCap/municipality_capital_distances.csv"
+OUT_RDS   <- "/Users/marileekarinshak/MexicoProject/harris-week7/data/processed/StateCap/municipality_capital_distances.rds"
+```
+
+```{r}
+
+# ---------------------------------------------------------------
+# 1. STATE CODE CROSSWALK
+# ---------------------------------------------------------------
+# The capitals CSV uses ISO 3166-2:MX alpha codes; CVEGEO uses INEGI
+# numeric codes 01-32. INEGI orders states alphabetically under the
+# traditional Spanish alphabet, where "ch" sorts after "c" -- hence
+# Coahuila (05) and Colima (06) precede Chiapas (07) and Chihuahua (08).
+
+ISO_TO_INEGI <- c(
+  AGU = "01", BCN = "02", BCS = "03", CAM = "04", COA = "05", COL = "06",
+  CHP = "07", CHH = "08", CMX = "09", DUR = "10", GUA = "11", GRO = "12",
+  HID = "13", JAL = "14", MEX = "15", MIC = "16", MOR = "17", NAY = "18",
+  NLE = "19", OAX = "20", PUE = "21", QUE = "22", ROO = "23", SLP = "24",
+  SIN = "25", SON = "26", TAB = "27", TAM = "28", TLA = "29", VER = "30",
+  YUC = "31", ZAC = "32"
+)
+
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 2. LOAD
+# ---------------------------------------------------------------
+
+mun <- st_read(MUN_PATH, quiet = TRUE)
+
+# explicit col_types avoids the vroom parsing warning
+caps <- read_csv(CAP_PATH, show_col_types = FALSE,
+                 col_types = cols(
+                   state      = col_character(),
+                   state_code = col_character(),
+                   capital    = col_character(),
+                   latitude   = col_double(),
+                   longitude  = col_double()
+                 ))
+
+cat("Municipalities:", nrow(mun), "\n")
+cat("Capitals:      ", nrow(caps), "(expect 32)\n\n")
+
+stopifnot(MUN_ID %in% names(mun))
+stopifnot(nrow(caps) == 32)
+stopifnot(!any(is.na(caps$latitude)), !any(is.na(caps$longitude)))
+
+caps$state_num <- ISO_TO_INEGI[caps$state_code]
+if (any(is.na(caps$state_num))) {
+  stop("Unmapped state_code values: ",
+       paste(caps$state_code[is.na(caps$state_num)], collapse = ", "))
+}
+stopifnot(!any(duplicated(caps$state_num)))
+
+# check coordinates fall within Mexico's bounding box
+stopifnot(all(caps$latitude  > 14 & caps$latitude  < 33))
+stopifnot(all(caps$longitude > -118 & caps$longitude < -86))
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 3. CLEAN + REPROJECT
+# ---------------------------------------------------------------
+
+mun <- st_make_valid(mun)
+stopifnot(all(st_is_valid(mun)))
+mun <- st_transform(mun, CRS_PROJ)
+
+mun$state_num <- str_sub(str_pad(as.character(mun[[MUN_ID]]),
+                                 width = 5, pad = "0"), 1, 2)
+
+cat("States in municipality layer:", length(unique(mun$state_num)),
+    "(expect 32)\n\n")
+
+cap_pts <- st_as_sf(caps, coords = c("longitude", "latitude"), crs = 4326) |>
+  st_transform(CRS_PROJ)
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 4. CENTROIDS
+# ---------------------------------------------------------------
+
+cent <- st_centroid(mun)
+
+# Substitute point-on-surface where the centroid falls outside its polygon
+inside_own <- diag(st_intersects(cent, mun, sparse = FALSE))
+bad <- which(!inside_own)
+cat("Centroids outside own polygon:", length(bad), "-> point-on-surface\n")
+if (length(bad) > 0) {
+  pos <- st_point_on_surface(mun[bad, ])
+  st_geometry(cent)[bad] <- st_geometry(pos)
+}
+stopifnot(nrow(cent) == nrow(mun), sum(st_is_empty(cent)) == 0)
+cat("\n")
+
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 5. IDENTIFY EACH STATE'S CAPITAL MUNICIPALITY
+# ---------------------------------------------------------------
+# Point-in-polygon. Robust to simplification: capital city points sit
+# well inside their municipality, not near the boundary.
+
+contain <- st_within(cap_pts, mun)
+n_hits  <- lengths(contain)
+
+if (any(n_hits == 0)) {
+  cat("Capital points outside all polygons -> using nearest municipality:\n")
+  print(as.data.frame(caps[n_hits == 0, c("state", "capital")]))
+  cat("\n")
+}
+
+cap_row <- integer(nrow(cap_pts))
+for (i in seq_len(nrow(cap_pts))) {
+  cap_row[i] <- if (n_hits[i] >= 1) contain[[i]][1] else
+    st_nearest_feature(cap_pts[i, ], mun)
+}
+
+cap_pts$cap_cvegeo    <- as.character(mun[[MUN_ID]])[cap_row]
+cap_pts$cap_state_geo <- mun$state_num[cap_row]
+
+# VALIDATION: containing municipality should be in the capital's own state
+mismatch <- cap_pts$cap_state_geo != cap_pts$state_num
+cat("--- capital point validation ---\n")
+if (any(mismatch)) {
+  cat("MISMATCH -- capital point lands in the wrong state:\n")
+  print(st_drop_geometry(cap_pts)[mismatch,
+                                  c("state", "capital", "state_num", "cap_state_geo", "cap_cvegeo")])
+  cat("-> verify lat/long for these rows\n")
+} else {
+  cat("All 32 capital points land inside their own state. OK\n")
+}
+cat("\n")
+
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 6. MATCH EACH MUNICIPALITY TO ITS OWN CAPITAL
+# ---------------------------------------------------------------
+
+own <- match(mun$state_num, cap_pts$state_num)
+if (any(is.na(own))) {
+  stop("Municipalities whose state has no capital in the CSV: ",
+       paste(unique(mun$state_num[is.na(own)]), collapse = ", "))
+}
+
+# by_element = TRUE pairs row i of x with row i of y
+d_own_city   <- as.numeric(st_distance(cent, cap_pts[own, ],
+                                       by_element = TRUE)) / 1000
+d_own_capmun <- as.numeric(st_distance(cent, cent[cap_row[own], ],
+                                       by_element = TRUE)) / 1000
+
+
+# ---------------------------------------------------------------
+# 7. NEAREST CAPITAL OF ANY STATE
+# ---------------------------------------------------------------
+
+D <- matrix(as.numeric(st_distance(cent, cap_pts)), nrow = nrow(mun))
+idx <- apply(D, 1, which.min)
+d_near <- D[cbind(seq_len(nrow(D)), idx)] / 1000
+
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 8. ASSEMBLE
+# ---------------------------------------------------------------
+
+final <- tibble(
+  !!MUN_ID       := as.character(mun[[MUN_ID]]),
+  state_num       = mun$state_num,
+  state_name      = cap_pts$state[own],
+  own_capital     = cap_pts$capital[own],
+  capital_cvegeo  = cap_pts$cap_cvegeo[own],
+  
+  # own state's capital
+  dist_cap_own     = d_own_city,     # to the capital city point
+  dist_capmun_own  = d_own_capmun,   # to the capital municipality's centroid
+  
+  # nearest capital of any state
+  dist_cap_nearest = d_near,
+  nearest_cap      = cap_pts$capital[idx],
+  nearest_cap_state = cap_pts$state[idx],
+  same_state_cap   = cap_pts$state_num[idx] == mun$state_num,
+  
+  # status
+  is_capital       = as.character(mun[[MUN_ID]]) %in% cap_pts$cap_cvegeo
+)
+
+# derived
+final$near_own_cap        <- final$dist_cap_own <= NEAR_KM
+final$excess_dist_own_cap <- final$dist_cap_own - final$dist_cap_nearest
+final$log_dist_cap_own    <- log1p(final$dist_cap_own)
+
+# capitals within bands
+for (b in BANDS_KM) {
+  final[[paste0("n_caps_", b, "km")]] <- rowSums(D <= b * 1000)
+}
+
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 9. CHECKS
+# ---------------------------------------------------------------
+
+cat("--- checks ---\n")
+cat("Rows:", nrow(final), "(expected", nrow(mun), ")\n")
+cat("Duplicate IDs:", sum(duplicated(final[[MUN_ID]])), "\n")
+cat("NA distances:", sum(is.na(final$dist_cap_own)), "\n")
+cat("Flagged as capitals:", sum(final$is_capital), "(expect 32)\n")
+cat("Own capital nearer than nearest capital (should be 0):",
+    sum(final$excess_dist_own_cap < -1e-6), "\n")
+cat("Capital municipalities with dist_cap_own > 0:",
+    sum(final$dist_cap_own[final$is_capital &
+                             final[[MUN_ID]] == final$capital_cvegeo] > 1e-6),
+    "-- nonzero is expected here: the centroid is not the city point\n")
+cat("Closer to ANOTHER state's capital:", sum(!final$same_state_cap), "\n")
+cat("Within", NEAR_KM, "km of own capital:", sum(final$near_own_cap), "\n\n")
+
+cat("Distance to own capital, km:\n")
+print(summary(final$dist_cap_own))
+
+cat("\nBy state -- distance to own capital (km):\n")
+print(final |>
+        group_by(state_name) |>
+        summarise(n = n(),
+                  mean_km   = round(mean(dist_cap_own), 1),
+                  median_km = round(median(dist_cap_own), 1),
+                  max_km    = round(max(dist_cap_own), 1),
+                  .groups = "drop") |>
+        arrange(desc(mean_km)) |>
+        as.data.frame())
+```
+
+```{r}
+# ---------------------------------------------------------------
+# 10. EXPORT
+# ---------------------------------------------------------------
+
+write_csv(final, OUT_CSV)
+saveRDS(final, OUT_RDS)
+cat("\nWrote", OUT_CSV, "--", nrow(final), "rows x", ncol(final), "cols\n")
+```
