@@ -1,0 +1,165 @@
+---
+title: "Julie_HSIF_mex_02_ranking"
+output: html_document
+date: "2026-08-31"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Part 2: Ranking
+
+This file picks up where `01_key_frame_and_criteria.Rmd` left off. It reads
+`final_key_df.csv` and `treated61-2.csv` fresh from disk, so it can be run
+on its own any time after Part 1 has been run at least once — it does not
+need Part 1's R session to still be open.
+
+```{r load_inputs}
+
+library(dplyr)
+
+# ---- Load inputs saved by 01_key_frame_and_criteria.Rmd ----
+final_key_df <- read.csv("final_key_df.csv", stringsAsFactors = FALSE) %>%
+  mutate(CVEGEO = formatC(CVEGEO, width = 5, format = "d", flag = "0"))
+
+treated <- read.csv("treated61-2.csv", stringsAsFactors = FALSE) %>%
+  mutate(CVEGEO = formatC(CVEGEO, width = 5, format = "d", flag = "0"))
+
+nrow(final_key_df)   # expect 2478
+nrow(treated)         # expect 61
+
+```
+
+```{r build_composite}
+
+# ---- Z-score each criteria variable ----
+# scale() computes mean/sd using only non-missing values, and leaves NA as NA
+# — important, since n_inseguro_popw has missing municipalities (not sampled in 2025)
+composite_index <- final_key_df %>%
+  mutate(
+    z_homicidios = as.numeric(scale(homicidios_total)),
+    z_robos      = as.numeric(scale(robos_total)),
+    z_inseguro   = as.numeric(scale(n_inseguro_popw))   # will have NAs where not sampled
+  )
+
+# ---- Confirm scaling worked as expected ----
+mean(composite_index$z_homicidios, na.rm = TRUE)   # expect ~0
+sd(composite_index$z_homicidios, na.rm = TRUE)      # expect ~1
+mean(composite_index$z_robos, na.rm = TRUE)
+sd(composite_index$z_robos, na.rm = TRUE)
+mean(composite_index$z_inseguro, na.rm = TRUE)
+sd(composite_index$z_inseguro, na.rm = TRUE)
+
+# ---- Flag non-sampled municipalities BEFORE filling ----
+composite_index <- composite_index %>%
+  mutate(
+    non_sampled_ensu = if_else(is.na(z_inseguro), 1, 0)
+  )
+
+# ---- Audit the flag before filling ----
+sum(composite_index$non_sampled_ensu)                  # how many municipalities weren't sampled
+mean(composite_index$non_sampled_ensu)                 # what share of all municipalities
+sum(is.na(composite_index$z_inseguro))                 # should match sum(non_sampled_ensu)
+
+# ---- Now fill missing z_inseguro with 0 ----
+composite_index <- composite_index %>%
+  mutate(
+    z_inseguro = if_else(is.na(z_inseguro), 0, z_inseguro)
+  )
+
+# ---- Confirm no NAs remain in any z-score column ----
+sum(is.na(composite_index$z_homicidios))
+sum(is.na(composite_index$z_robos))
+sum(is.na(composite_index$z_inseguro))                 # should now be 0
+
+# ---- Build the equal-weight composite ----
+composite_index <- composite_index %>%
+  mutate(
+    composite_equal = (z_homicidios + z_robos + z_inseguro) / 3
+  )
+
+# ---- Sanity extremes ----
+composite_index %>% arrange(desc(composite_equal)) %>% head(5) %>%
+  select(CVEGEO, NOMGEO, homicidios_total, robos_total, n_inseguro_popw, composite_equal)
+composite_index %>% arrange(composite_equal) %>% head(5) %>%
+  select(CVEGEO, NOMGEO, homicidios_total, robos_total, n_inseguro_popw, composite_equal)
+
+# ---- Spot check: does a non_sampled row actually have z_inseguro == 0? ----
+composite_index %>% filter(non_sampled_ensu == 1) %>%
+  select(CVEGEO, NOMGEO, z_inseguro) %>% head()
+
+```
+
+```{r rank_composite}
+
+# ---- Produce ranks: rank 1 = worst (highest composite value) ----
+composite_index <- composite_index %>%
+  mutate(
+    rank_composite_equal = min_rank(desc(composite_equal))
+  ) %>%
+  arrange(rank_composite_equal)   # order the whole table by rank
+
+# ---- Confirm rank 1 = worst ----
+head(composite_index, 1) %>%
+  select(CVEGEO, NOMGEO, homicidios_total, robos_total, n_inseguro_popw, composite_equal, rank_composite_equal)
+
+# This should be the SAME municipality you saw at the top of your
+# arrange(desc(composite_equal)) sanity check above — if not, something's off
+
+# ---- Confirm the bottom of the ranking looks "best" (lowest composite) ----
+tail(composite_index, 1) %>%
+  select(CVEGEO, NOMGEO, homicidios_total, robos_total, n_inseguro_popw, composite_equal, rank_composite_equal)
+
+# ---- Explicit assertion: rank 1 really is the max composite value ----
+stopifnot(
+  composite_index$CVEGEO[composite_index$rank_composite_equal == 1] ==
+  composite_index$CVEGEO[which.max(composite_index$composite_equal)]
+)
+
+# ---- Eyeball top-ranked municipalities ----
+top_ranked <- head(composite_index, 61)
+top_ranked %>% select(CVEGEO, NOMGEO, composite_equal, rank_composite_equal)
+
+```
+
+```{r join_treated}
+
+# ---- Join treated status onto the ranked composite ----
+composite_index <- composite_index %>%
+  left_join(
+    treated %>% select(CVEGEO, gov_inclusion_code),
+    by = "CVEGEO"
+  ) %>%
+  mutate(
+    is_treated = if_else(!is.na(gov_inclusion_code), 1, 0)
+  )
+
+# ---- Audit ----
+sum(composite_index$is_treated)          # should be 61
+table(composite_index$gov_inclusion_code, useNA = "ifany")
+
+# ---- How many treated municipalities fall in the worst-ranked group? ----
+composite_index %>%
+  filter(rank_composite_equal <= 61) %>%
+  summarise(n_treated_in_top = sum(is_treated))
+
+# ---- Break that down by criteria-based vs strategic ----
+composite_index %>%
+  filter(rank_composite_equal <= 61) %>%
+  count(gov_inclusion_code)
+
+# ---- Which treated municipalities did NOT make the worst-ranked cut? ----
+composite_index %>%
+  filter(is_treated == 1, rank_composite_equal > 61) %>%
+  select(CVEGEO, NOMGEO, gov_inclusion_code, composite_equal, rank_composite_equal) %>%
+  arrange(rank_composite_equal)
+
+```
+
+```{r save_output}
+
+# ---- Save, already in rank order ----
+write.csv(composite_index, "composite_index.csv", row.names = FALSE)
+
+```
