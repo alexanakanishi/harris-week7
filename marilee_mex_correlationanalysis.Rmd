@@ -1,0 +1,28 @@
+---
+title: "marilee_mex_correlationanalysis"
+output: html_document
+date: "2026-09-03"
+---
+
+Pearson correlation 
+
+```{r}
+
+
+
+```
+
+
+```{r}
+
+
+
+```
+
+
+```{r}
+
+
+
+```
+
