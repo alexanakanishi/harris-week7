@@ -1,17 +1,267 @@
 ---
-title: "marilee_mex_correlationanalysis"
+title: "Marilee Mex Correlation Analysis"
 output: html_document
 date: "2026-09-03"
 ---
 
-Pearson correlation 
+**Spearman Correlation Analysis for Multicollinearity Reduction**
+
+**Goal:** Identify which of the \~257 variables are most similar to each other, so we can reduce covariate redundancy
 
 ```{r}
+## 1. Set up
+
+# Packages
+required_packages <- c("corrplot", "reshape2", "caret", "dplyr", "Hmisc")
+new_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
+if(length(new_packages)) install.packages(new_packages, repos = "https://cloud.r-project.org")
+
+library(corrplot)
+library(reshape2)
+library(caret)
+library(dplyr)
+library(Hmisc)
+
+# Load & Prep Data
+df <- read.csv("/Users/marileekarinshak/MexicoProject/harris-week7/data/processed/Covariates/merged_covariates.csv")
+
+## Columns to exclude from correlation (IDs, labels, dates, etc.)
+## Edit this vector to match your actual non-numeric / non-variable columns
+id_cols <- c("CVEGEO","NOMGEO")
+
+## Keep only numeric columns (Spearman correlation requires numeric data)
+num_df <- df %>%
+  select(-any_of(id_cols)) %>%
+  select(where(is.numeric))
+
+cat("Number of numeric-type columns before filtering:", ncol(num_df), "\n")
 ```
 
 ```{r}
+
+## 1.5 Filtering out columns that are numeric but not continuous
+
+unique_value_threshold <- 5   # columns with <= this many unique values are treated as categorical/binary
+
+col_diagnostics <- data.frame(
+  column = names(num_df),
+  n_unique = sapply(num_df, function(x) length(unique(na.omit(x)))),
+  is_integer_type = sapply(num_df, is.integer),
+  stringsAsFactors = FALSE
+)
+
+## Flag columns as "likely categorical" if they have few unique values
+## (covers binary 0/1 flags, Likert scales, category codes, etc.)
+low_unique_cols <- col_diagnostics$column[col_diagnostics$n_unique <= unique_value_threshold]
+
+if(length(low_unique_cols) > 0){
+  cat("\nExcluding", length(low_unique_cols), "columns with <=", unique_value_threshold,
+      "unique values (likely binary/categorical, not continuous):\n")
+  print(low_unique_cols)
+  num_df <- num_df %>% select(-all_of(low_unique_cols))
+}
+
+## Also drop any date/datetime/POSIX columns that slipped through
+date_cols <- names(num_df)[sapply(num_df, function(x) inherits(x, c("Date", "POSIXct", "POSIXt")))]
+if(length(date_cols) > 0){
+  cat("\nExcluding date/time columns:", paste(date_cols, collapse = ", "), "\n")
+  num_df <- num_df %>% select(-all_of(date_cols))
+}
+
+cat("\nNumber of continuous variables remaining for correlation analysis:", ncol(num_df), "\n")
+ 
+## Drop zero-variance columns (constant columns break correlation)
+zero_var_cols <- names(num_df)[sapply(num_df, function(x) sd(x, na.rm = TRUE) == 0)]
+if(length(zero_var_cols) > 0){
+  cat("Dropping zero-variance columns:", paste(zero_var_cols, collapse = ", "), "\n")
+  num_df <- num_df %>% select(-all_of(zero_var_cols))
+}
 ```
 
 ```{r}
+## 2. Compute correlation matrices (Spearman = primary, Pearson = comparison)
+
+spearman_result <- rcorr(as.matrix(num_df), type = "spearman")
+corr_matrix   <- spearman_result$r  
+p_matrix      <- spearman_result$P
+
+pearson_result  <- rcorr(as.matrix(num_df), type = "pearson")
+pearson_matrix  <- pearson_result$r
+pearson_p       <- pearson_result$P
+
+## 3. Turn the matrix into a long "pairs" table 
+## This output gives a ranked list of which variable pairs are most redundant with each other.
+
+get_pairs_table <- function(corr_matrix, p_matrix){
+  corr_matrix[upper.tri(corr_matrix, diag = TRUE)] <- NA
+  p_matrix[upper.tri(p_matrix, diag = TRUE)] <- NA
+  
+  corr_long <- melt(corr_matrix, na.rm = TRUE, varnames = c("Var1", "Var2"), value.name = "correlation")
+  p_long    <- melt(p_matrix,    na.rm = TRUE, varnames = c("Var1", "Var2"), value.name = "p_value")
+  
+  merged <- merge(corr_long, p_long, by = c("Var1", "Var2"))
+  merged$abs_correlation <- abs(merged$correlation)
+  merged <- merged[order(-merged$abs_correlation), ]
+  rownames(merged) <- NULL
+  merged
+}
+
+pairs_table         <- get_pairs_table(corr_matrix, p_matrix)          # Spearman (primary)
+pairs_table_pearson <- get_pairs_table(pearson_matrix, pearson_p)      # Pearson (comparison)
+
+## Merge the two so you can see, side by side, where the methods agree/disagree
+comparison_table <- merge(
+  pairs_table[, c("Var1","Var2","correlation")],
+  pairs_table_pearson[, c("Var1","Var2","correlation")],
+  by = c("Var1","Var2"),
+  suffixes = c("_spearman", "_pearson")
+)
+comparison_table$abs_diff <- abs(comparison_table$correlation_spearman - comparison_table$correlation_pearson)
+comparison_table <- comparison_table[order(-comparison_table$abs_diff), ]
+
+cat("\nTop 15 pairs where Spearman and Pearson disagree the most\n")
+cat("(large gaps usually mean a nonlinear-but-monotonic relationship, or outlier-driven Pearson distortion):\n")
+
+print(head(comparison_table, 15))
 ```
 
+```{r}
+## 4. Flag pairs that appear too similar
+## 0.7-0.8 is a common rule-of-thumb cutoff for concerning multicollinearity (but adjust threshold based on our needs)
+
+threshold <- 0.7
+
+high_corr_pairs <- pairs_table %>%
+  filter(abs_correlation >= threshold)
+
+cat("\nNumber of variable pairs with |Spearman| >=", threshold, ":", nrow(high_corr_pairs), "\n")
+
+cat("Top 20 most correlated pairs (Spearman):\n")
+
+print(head(pairs_table, 20))
+```
+
+```{r}
+## 5. Suggest which columns to DROP to reduce multicollinearity 
+## caret::findCorrelation uses a greedy algorithm: for each pair above
+## the cutoff, it removes the variable with the larger mean absolute
+## correlation to all other variables (i.e., the more "redundant" one
+## overall), trying to keep the max number of usable variables.
+
+cor_for_caret <- cor(num_df, use = "pairwise.complete.obs", method = "spearman")
+
+# handle any remaining NAs (can occur if a variable pair never overlaps)
+cor_for_caret[is.na(cor_for_caret)] <- 0
+
+drop_indices <- findCorrelation(cor_for_caret, cutoff = threshold, names = TRUE, exact = TRUE)
+
+cat("\nSuggested columns to DROP (", length(drop_indices), " of ", ncol(num_df), "):\n", sep = "")
+print(drop_indices)
+
+kept_vars <- setdiff(colnames(num_df), drop_indices)
+cat("\nSuggested columns to KEEP (", length(kept_vars), " of ", ncol(num_df), "):\n", sep = "")
+print(kept_vars)
+
+```
+
+```{r}
+# 6. Group variables into correlation "clusters" 
+## This helps you see WHICH variables are redundant with which —
+## useful if you want to manually pick one representative per cluster
+## rather than trust the automated drop list.
+
+dist_matrix <- as.dist(1 - abs(cor_for_caret))
+hc <- hclust(dist_matrix, method = "average")
+
+## Cut the tree so that within-cluster correlation is >= threshold
+## (height = 1 - threshold on this distance scale)
+cluster_assignments <- cutree(hc, h = 1 - threshold)
+
+cluster_table <- data.frame(
+  variable = names(cluster_assignments),
+  cluster  = cluster_assignments
+) %>%
+  arrange(cluster)
+
+cat("\nNumber of clusters of similar variables:", length(unique(cluster_assignments)), "\n")
+
+## Show clusters that contain more than one variable (i.e., actual redundancy groups)
+redundant_clusters <- cluster_table %>%
+  group_by(cluster) %>%
+  filter(n() > 1) %>%
+  arrange(cluster)
+
+cat("\nClusters with 2+ similar variables (candidates for keeping just 1 each):\n")
+print(redundant_clusters, n = 100)
+```
+
+```{r}
+OUT_VIS   <- "/Users/marileekarinshak/MexicoProject/harris-week7/data/processed/StateCap/municipality_capital_distances.csv"
+
+
+# ---- 7. Visualizations ----
+dir.create("outputs", showWarnings = FALSE)
+
+## 7a. Full heatmap (only readable if you zoom into the saved PNG,
+## since 257 variables is a lot to show at once)
+png("outputs/correlation_heatmap_full.png", width = 4000, height = 4000, res = 300)
+corrplot(corr_matrix,
+         method = "color",
+         type = "upper",
+         order = "hclust",     # groups similar variables together visually
+         tl.cex = 0.4,         # shrink text so labels don't overlap
+         tl.col = "black",
+         diag = FALSE)
+dev.off()
+
+## 7b. Smaller heatmap showing ONLY the high-correlation pairs' variables
+## (much easier to actually read)
+vars_in_high_pairs <- unique(c(high_corr_pairs$Var1, high_corr_pairs$Var2))
+
+if(length(vars_in_high_pairs) > 1){
+  png("outputs/correlation_heatmap_highcorr_only.png", width = 3000, height = 3000, res = 300)
+  corrplot(corr_matrix[vars_in_high_pairs, vars_in_high_pairs],
+           method = "color",
+           type = "upper",
+           order = "hclust",
+           tl.cex = 0.7,
+           tl.col = "black",
+           addCoef.col = "black",  # show actual correlation values
+           number.cex = 0.5,
+           diag = FALSE)
+  dev.off()
+}
+
+## 7c. Dendrogram showing variable clustering
+png("outputs/variable_clustering_dendrogram.png", width = 4000, height = 2000, res = 300)
+plot(hc, cex = 0.5, main = "Variable Similarity Clustering (1 - |Spearman rho|)",
+     xlab = "", sub = "")
+abline(h = 1 - threshold, col = "red", lty = 2)
+dev.off()
+```
+
+```{r}
+
+## ---- 8. Save all tables to CSV ----
+write.csv(pairs_table, "outputs/all_pairwise_correlations_spearman.csv", row.names = FALSE)
+write.csv(pairs_table_pearson, "outputs/all_pairwise_correlations_pearson.csv", row.names = FALSE)
+write.csv(comparison_table, "outputs/spearman_vs_pearson_comparison.csv", row.names = FALSE)
+write.csv(high_corr_pairs, "outputs/high_correlation_pairs.csv", row.names = FALSE)
+write.csv(cluster_table, "outputs/variable_clusters.csv", row.names = FALSE)
+write.csv(data.frame(kept_variable = kept_vars), "outputs/suggested_covariates_to_keep.csv", row.names = FALSE)
+write.csv(data.frame(dropped_variable = drop_indices), "outputs/suggested_covariates_to_drop.csv", row.names = FALSE)
+
+cat("\n============================================================\n")
+cat("DONE. Check the 'outputs' folder for:\n")
+cat(" - all_pairwise_correlations_spearman.csv  (every pair, ranked by |rho| -- PRIMARY)\n")
+cat(" - all_pairwise_correlations_pearson.csv   (every pair, Pearson, for comparison)\n")
+cat(" - spearman_vs_pearson_comparison.csv      (pairs where the two methods disagree most)\n")
+cat(" - high_correlation_pairs.csv              (Spearman pairs above threshold =", threshold, ")\n")
+cat(" - variable_clusters.csv                   (which variables group together, Spearman-based)\n")
+cat(" - suggested_covariates_to_keep.csv        (caret's recommended set, Spearman-based)\n")
+cat(" - suggested_covariates_to_drop.csv        (caret's recommended drops, Spearman-based)\n")
+cat(" - correlation_heatmap_full.png            (all variables, Spearman, ordered by similarity)\n")
+cat(" - correlation_heatmap_highcorr_only.png   (just the problematic ones, readable)\n")
+cat(" - variable_clustering_dendrogram.png      (visual tree of similar variables)\n")
+cat("============================================================\n")
+```
