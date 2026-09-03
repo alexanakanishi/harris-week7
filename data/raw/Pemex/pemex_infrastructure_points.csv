@@ -1,0 +1,109 @@
+layer,facility_name,state,municipality_city,lat,lon,coord_precision,notes
+Refinery,Refineria Ing. Hector R. Lara Sosa (Cadereyta),Nuevo Leon,Cadereyta Jimenez,25.6,-99.961,facility,
+Refinery,Refineria Francisco I. Madero,Tamaulipas,Ciudad Madero,22.2703,-97.8064,facility,Coords per Wikipedia
+Refinery,Refineria Miguel Hidalgo (Tula),Hidalgo,Tula de Allende,20.044,-99.29,facility,
+Refinery,Refineria Ing. Antonio M. Amor (Salamanca),Guanajuato,Salamanca,20.579,-101.184,facility,
+Refinery,Refineria Gral. Lazaro Cardenas (Minatitlan),Veracruz,Minatitlan,17.985,-94.545,facility,
+Refinery,Refineria Ing. Antonio Dovali Jaime (Salina Cruz),Oaxaca,Salina Cruz,16.185,-95.187,facility,
+Refinery,Refineria Olmeca (Dos Bocas),Tabasco,Paraiso,18.426,-93.184,facility,Newest refinery; not on all Pemex map versions
+Refinery,Pemex Deer Park,Texas (USA),Deer Park,29.7196,-95.132,facility,"Coords per Wikipedia; outside Mexico, integrated in supply balance"
+Gas processing complex (CPG),CPG Cactus,Chiapas,Reforma,17.938,-93.19,facility_approx,
+Gas processing complex (CPG),CPG Nuevo Pemex,Tabasco,Reforma/Villahermosa corridor,17.917,-92.983,facility_approx,
+Gas processing complex (CPG),CPG Ciudad Pemex,Tabasco,Macuspana,17.883,-92.467,facility_approx,
+Gas processing complex (CPG),CPG La Venta,Tabasco,Huimanguillo,18.098,-94.04,facility_approx,
+Gas processing complex (CPG),CPG Area Coatzacoalcos,Veracruz,Coatzacoalcos (Pajaritos corridor),18.13,-94.4,facility_approx,
+Gas processing complex (CPG),CPG Matapionche,Veracruz,Cotaxtla,18.86,-96.15,municipal,Verify before precise spatial joins
+Gas processing complex (CPG),CPG Poza Rica,Veracruz,Poza Rica,20.545,-97.445,facility_approx,
+Gas processing complex (CPG),CPG Arenque,Tamaulipas,Ciudad Madero,22.263,-97.836,facility_approx,Adjacent to Madero refinery zone
+Gas processing complex (CPG),CPG Burgos,Tamaulipas,Reynosa,26.0,-98.35,municipal,SW of Reynosa; verify before precise spatial joins
+Petrochemical complex,CP La Cangrejera,Veracruz,Coatzacoalcos,18.104,-94.335,facility_approx,
+Petrochemical complex,CP Morelos,Veracruz,Coatzacoalcos,18.113,-94.315,facility_approx,
+Petrochemical complex,CP Pajaritos,Veracruz,Coatzacoalcos,18.128,-94.39,facility_approx,Operated with Mexichem JV in some years
+Petrochemical complex,CP Cosoleacaque,Veracruz,Cosoleacaque,17.99,-94.603,facility_approx,
+Petrochemical complex,CP Independencia,Puebla,San Martin Texmelucan,19.271,-98.435,facility_approx,
+Petrochemical complex,CP Escolin,Veracruz,Poza Rica,20.517,-97.441,facility_approx,
+Marine terminal,TM Pajaritos,Veracruz,Coatzacoalcos,18.135,-94.387,facility_approx,
+Marine terminal,TM Dos Bocas,Tabasco,Paraiso,18.435,-93.19,facility_approx,Crude export
+Marine terminal,TM Salina Cruz,Oaxaca,Salina Cruz,16.166,-95.196,facility_approx,Pacific crude/products
+Marine terminal,TM Tuxpan,Veracruz,Tuxpan,20.965,-97.318,facility_approx,Main products import for Valley of Mexico
+Marine terminal,TM Veracruz,Veracruz,Veracruz,19.207,-96.13,facility_approx,
+Marine terminal,TM Progreso,Yucatan,Progreso,21.283,-89.665,facility_approx,
+Marine terminal,TM Lazaro Cardenas,Michoacan,Lazaro Cardenas,17.94,-102.18,facility_approx,
+Marine terminal,TM Manzanillo,Colima,Manzanillo,19.062,-104.308,facility_approx,
+Marine terminal,TM Guaymas,Sonora,Guaymas,27.918,-110.9,facility_approx,
+Marine terminal,TM Topolobampo,Sinaloa,Ahome,25.601,-109.05,facility_approx,
+Marine terminal,TM Mazatlan,Sinaloa,Mazatlan,23.185,-106.42,facility_approx,
+Marine terminal,TM Rosarito,Baja California,Playas de Rosarito,32.357,-117.059,facility_approx,
+Marine terminal,Cayo Arcas (offshore crude loading),Campeche (offshore),Gulf of Campeche,20.2,-91.97,facility_approx,Offshore buoy/platform terminal
+Storage & distribution terminal (TAR),TAR Rosarito,Baja California,Playas de Rosarito,32.36,-117.06,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Mexicali,Baja California,Mexicali,32.65,-115.47,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Ensenada,Baja California,Ensenada,31.87,-116.6,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR La Paz,Baja California Sur,La Paz,24.14,-110.31,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Hermosillo,Sonora,Hermosillo,29.09,-110.96,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Guaymas,Sonora,Guaymas,27.92,-110.9,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Ciudad Obregon,Sonora,Cajeme,27.49,-109.94,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Navojoa,Sonora,Navojoa,27.07,-109.44,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Nogales,Sonora,Nogales,31.31,-110.94,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Magdalena,Sonora,Magdalena de Kino,30.63,-110.96,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Topolobampo,Sinaloa,Ahome,25.6,-109.05,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Culiacan,Sinaloa,Culiacan,24.81,-107.39,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Guamuchil,Sinaloa,Salvador Alvarado,25.46,-108.08,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Mazatlan,Sinaloa,Mazatlan,23.22,-106.42,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Tepic,Nayarit,Tepic,21.51,-104.89,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Ciudad Juarez,Chihuahua,Juarez,31.69,-106.42,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Chihuahua,Chihuahua,Chihuahua,28.63,-106.08,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Hidalgo del Parral,Chihuahua,Hidalgo del Parral,26.93,-105.66,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Gomez Palacio,Durango,Gomez Palacio,25.57,-103.5,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Durango,Durango,Durango,24.02,-104.65,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Zacatecas,Zacatecas,Zacatecas/Guadalupe,22.75,-102.55,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Sabinas,Coahuila,Sabinas,27.86,-101.12,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Nuevo Laredo,Tamaulipas,Nuevo Laredo,27.48,-99.55,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Reynosa,Tamaulipas,Reynosa,26.05,-98.3,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Santa Catarina,Nuevo Leon,Santa Catarina (Monterrey),25.67,-100.45,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Cadereyta,Nuevo Leon,Cadereyta Jimenez,25.6,-99.98,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Ciudad Victoria,Tamaulipas,Victoria,23.73,-99.14,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Ciudad Madero,Tamaulipas,Ciudad Madero,22.27,-97.83,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Ciudad Mante,Tamaulipas,El Mante,22.74,-98.97,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR San Luis Potosi,San Luis Potosi,San Luis Potosi,22.15,-100.98,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Matehuala,San Luis Potosi,Matehuala,23.65,-100.64,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Aguascalientes,Aguascalientes,Aguascalientes,21.88,-102.29,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Leon,Guanajuato,Leon,21.12,-101.68,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Irapuato,Guanajuato,Irapuato,20.67,-101.35,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Salamanca,Guanajuato,Salamanca,20.57,-101.19,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Celaya,Guanajuato,Celaya,20.52,-100.81,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Queretaro,Queretaro,Queretaro,20.59,-100.39,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Guadalajara (El Castillo),Jalisco,El Salto/Zapopan area,20.52,-103.24,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Zamora,Michoacan,Zamora,19.98,-102.28,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Morelia,Michoacan,Morelia,19.7,-101.19,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Uruapan,Michoacan,Uruapan,19.41,-102.05,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Lazaro Cardenas,Michoacan,Lazaro Cardenas,17.94,-102.18,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Manzanillo,Colima,Manzanillo,19.06,-104.31,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Colima,Colima,Colima,19.24,-103.72,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Toluca,Estado de Mexico,Toluca,19.29,-99.65,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Satelite Norte (San Juan Ixhuatepec),Estado de Mexico,Tlalnepantla,19.53,-99.12,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Azcapotzalco,Ciudad de Mexico,Azcapotzalco,19.482,-99.185,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR 18 de Marzo,Ciudad de Mexico,Azcapotzalco,19.483,-99.176,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR El Anil (Satelite Oriente),Ciudad de Mexico,Iztacalco,19.395,-99.093,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Barranca del Muerto (Satelite Sur),Ciudad de Mexico,Alvaro Obregon,19.36,-99.19,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Cuernavaca,Morelos,Cuernavaca,18.92,-99.23,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Cuautla,Morelos,Cuautla,18.81,-98.95,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Pachuca,Hidalgo,Pachuca/Mineral de la Reforma,20.1,-98.75,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Tula,Hidalgo,Tula de Allende,20.05,-99.34,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Puebla,Puebla,Puebla,19.04,-98.2,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR San Martin Texmelucan,Puebla,San Martin Texmelucan,19.28,-98.43,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Poza Rica,Veracruz,Poza Rica,20.53,-97.46,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Xalapa,Veracruz,Xalapa,19.53,-96.92,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Perote,Veracruz,Perote,19.56,-97.24,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Veracruz,Veracruz,Veracruz,19.18,-96.15,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Escamela,Veracruz,Ixtaczoquitlan (Orizaba),18.87,-97.06,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Tierra Blanca,Veracruz,Tierra Blanca,18.46,-96.34,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Minatitlan,Veracruz,Minatitlan,17.99,-94.55,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Salina Cruz,Oaxaca,Salina Cruz,16.17,-95.2,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Oaxaca,Oaxaca,Oaxaca de Juarez,17.06,-96.72,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Tuxtla Gutierrez,Chiapas,Tuxtla Gutierrez,16.75,-93.12,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Tapachula,Chiapas,Tapachula,14.9,-92.26,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Villahermosa,Tabasco,Centro,17.99,-92.93,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Campeche,Campeche,Campeche,19.85,-90.53,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Merida,Yucatan,Merida,20.97,-89.62,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Progreso,Yucatan,Progreso,21.28,-89.66,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
+Storage & distribution terminal (TAR),TAR Cancun,Quintana Roo,Benito Juarez,21.16,-86.85,city_centroid,Verify against CRE/Pemex Logistica permit data before facility-level analysis
